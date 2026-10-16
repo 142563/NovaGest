@@ -254,4 +254,98 @@ class TiposTramiteTests {
 		assertThat(JsonPath.<Integer>read(cuerpo, "$.page.size")).isLessThanOrEqualTo(100);
 	}
 
+	private static String tipoConCampos(String nombre, String campos) {
+		return "{\"nombre\":\"" + nombre + "\",\"monto\":10,\"campos\":" + campos + "}";
+	}
+
+	@Test
+	void ornatoEIgssTraenSusCamposDeEjemplo() throws Exception {
+		String admin = tokenCon("admin@demo.com", "ADMINISTRADOR");
+
+		String cuerpo = enviar(HttpMethod.GET, RUTA + "?size=100", admin, null).getContentAsString();
+
+		List<String> clavesOrnato = JsonPath.read(cuerpo,
+				"$.content[?(@.nombre=='Boleto de ornato')].campos[*].clave");
+		assertThat(clavesOrnato).containsExactly("dpi", "ocupacion", "ingreso_mensual", "direccion");
+		List<Boolean> obligatorios = JsonPath.read(cuerpo,
+				"$.content[?(@.nombre=='Boleto de ornato')].campos[*].obligatorio");
+		assertThat(obligatorios).containsExactly(true, true, true, false);
+		List<String> clavesIgss = JsonPath.read(cuerpo, "$.content[?(@.nombre=='Pago de IGSS')].campos[*].clave");
+		assertThat(clavesIgss).containsExactly("numero_afiliacion", "periodo", "salario", "patrono");
+	}
+
+	@Test
+	void elAdministradorCreaUnTipoConSusCamposYSalenEnOrden() throws Exception {
+		String admin = tokenCon("admin@demo.com", "ADMINISTRADOR");
+		String campos = "[{\"clave\":\"placa\",\"etiqueta\":\"Placa\",\"tipoDato\":\"TEXTO\",\"obligatorio\":true,"
+				+ "\"patron\":\"^[A-Z]{1}[0-9]{3}[A-Z]{3}$\"},"
+				+ "{\"clave\":\"modelo\",\"etiqueta\":\"Modelo\",\"tipoDato\":\"NUMERO\",\"minimo\":1990},"
+				+ "{\"clave\":\"fecha_compra\",\"etiqueta\":\"Fecha de compra\",\"tipoDato\":\"FECHA\"}]";
+
+		MockHttpServletResponse r = enviar(HttpMethod.POST, RUTA, admin, tipoConCampos("Tarjeta de circulacion", campos));
+
+		assertThat(r.getStatus()).isEqualTo(201);
+		String cuerpo = r.getContentAsString();
+		assertThat(JsonPath.<List<String>>read(cuerpo, "$.campos[*].clave")).containsExactly("placa", "modelo", "fecha_compra");
+		assertThat(JsonPath.<List<String>>read(cuerpo, "$.campos[*].tipoDato")).containsExactly("TEXTO", "NUMERO", "FECHA");
+		assertThat(JsonPath.<Boolean>read(cuerpo, "$.campos[0].obligatorio")).isTrue();
+		assertThat(JsonPath.<Boolean>read(cuerpo, "$.campos[1].obligatorio")).isFalse();
+	}
+
+	@Test
+	void editarConCamposReemplazaLosAnterioresSinChocarConLaClaveUnica() throws Exception {
+		String admin = tokenCon("admin@demo.com", "ADMINISTRADOR");
+		long id = JsonPath.<Number>read(enviar(HttpMethod.POST, RUTA, admin, tipoConCampos("Con campos",
+				"[{\"clave\":\"uno\",\"etiqueta\":\"Uno\",\"tipoDato\":\"TEXTO\"},"
+						+ "{\"clave\":\"dos\",\"etiqueta\":\"Dos\",\"tipoDato\":\"TEXTO\"}]")).getContentAsString(), "$.id")
+				.longValue();
+
+		MockHttpServletResponse r = enviar(HttpMethod.PUT, RUTA + "/" + id, admin, tipoConCampos("Con campos",
+				"[{\"clave\":\"dos\",\"etiqueta\":\"Dos cambiado\",\"tipoDato\":\"NUMERO\",\"obligatorio\":true},"
+						+ "{\"clave\":\"tres\",\"etiqueta\":\"Tres\",\"tipoDato\":\"BOOLEANO\"}]"));
+
+		assertThat(r.getStatus()).isEqualTo(200);
+		String cuerpo = r.getContentAsString();
+		assertThat(JsonPath.<List<String>>read(cuerpo, "$.campos[*].clave")).containsExactly("dos", "tres");
+		assertThat(JsonPath.<String>read(cuerpo, "$.campos[0].etiqueta")).isEqualTo("Dos cambiado");
+		assertThat(JsonPath.<String>read(cuerpo, "$.campos[0].tipoDato")).isEqualTo("NUMERO");
+	}
+
+	@Test
+	void editarSinCamposNoCambiaLosCamposDelTipo() throws Exception {
+		String admin = tokenCon("admin@demo.com", "ADMINISTRADOR");
+		long ornato = JsonPath.<List<Number>>read(enviar(HttpMethod.GET, RUTA + "?size=100", admin, null)
+				.getContentAsString(), "$.content[?(@.nombre=='Boleto de ornato')].id").get(0).longValue();
+
+		MockHttpServletResponse r = enviar(HttpMethod.PUT, RUTA + "/" + ornato, admin,
+				"{\"nombre\":\"Boleto de ornato\",\"monto\":15.00}");
+
+		assertThat(r.getStatus()).isEqualTo(200);
+		assertThat(JsonPath.<List<String>>read(r.getContentAsString(), "$.campos[*].clave")).hasSize(4);
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = {
+			"[{\"clave\":\"a\",\"etiqueta\":\"A\",\"tipoDato\":\"TEXTO\",\"patron\":\"[sin-cerrar\"}]",
+			"[{\"clave\":\"a\",\"etiqueta\":\"A\",\"tipoDato\":\"NUMERO\",\"patron\":\"^[0-9]+$\"}]",
+			"[{\"clave\":\"a\",\"etiqueta\":\"A\",\"tipoDato\":\"TEXTO\",\"minimo\":5}]",
+			"[{\"clave\":\"a\",\"etiqueta\":\"A\",\"tipoDato\":\"TEXTO\"},{\"clave\":\"a\",\"etiqueta\":\"B\",\"tipoDato\":\"TEXTO\"}]",
+			"[{\"clave\":\"Mayuscula\",\"etiqueta\":\"A\",\"tipoDato\":\"TEXTO\"}]",
+			"[{\"clave\":\"con espacio\",\"etiqueta\":\"A\",\"tipoDato\":\"TEXTO\"}]",
+			"[{\"clave\":\"a\",\"etiqueta\":\"A\",\"tipoDato\":\"INVENTADO\"}]",
+			"[{\"clave\":\"a\",\"etiqueta\":\"\",\"tipoDato\":\"TEXTO\"}]" })
+	void losCamposInvalidosSon400(String campos) throws Exception {
+		String admin = tokenCon("admin@demo.com", "ADMINISTRADOR");
+
+		assertThat(enviar(HttpMethod.POST, RUTA, admin, tipoConCampos("Invalido", campos)).getStatus()).isEqualTo(400);
+	}
+
+	@Test
+	void soloElAdministradorPuedeCambiarLosCamposDeUnTipo() throws Exception {
+		String ciudadano = tokenCon("ana@demo.com", "CIUDADANO");
+
+		assertThat(enviar(HttpMethod.POST, RUTA, ciudadano, tipoConCampos("Intento",
+				"[{\"clave\":\"a\",\"etiqueta\":\"A\",\"tipoDato\":\"TEXTO\"}]")).getStatus()).isEqualTo(403);
+	}
+
 }

@@ -127,4 +127,12 @@ class UsuariosRolesPermisosTests {
 		assertThat(usuarios.existsByCorreoIgnoreCaseAndEliminadoEnIsNull("ana@demo.com")).isTrue();
 	}
 
+	@Test
+	void soloElCiudadanoTieneAlcancePropio() {
+		assertThat(roles.findByNombre("CIUDADANO").orElseThrow().isAlcanceTotal()).isFalse();
+		for (String rol : List.of("GESTOR", "AUDITOR", "ADMINISTRADOR")) {
+			assertThat(roles.findByNombre(rol).orElseThrow().isAlcanceTotal()).as(rol).isTrue();
+		}
+	}
+
 }

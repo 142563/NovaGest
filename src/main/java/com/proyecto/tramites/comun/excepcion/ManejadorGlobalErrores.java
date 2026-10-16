@@ -45,6 +45,16 @@ public class ManejadorGlobalErrores extends ResponseEntityExceptionHandler {
 		return handleExceptionInternal(ex, problema, headers, status, request);
 	}
 
+	/** 400 cuando los datos incumplen una regla de negocio: lista de campo y motivo, sin valores rechazados. */
+	@ExceptionHandler(DatosInvalidosException.class)
+	ProblemDetail datosInvalidos(DatosInvalidosException ex) {
+		ProblemDetail problema = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST,
+				"La solicitud tiene campos invalidos");
+		problema.setTitle("Solicitud invalida");
+		problema.setProperty("errores", ex.getErrores());
+		return problema;
+	}
+
 	/** 409 cuando la base rechaza el dato (por ejemplo un valor unico repetido). Sin detalles internos. */
 	@ExceptionHandler(DataIntegrityViolationException.class)
 	ProblemDetail conflictoDeDatos(DataIntegrityViolationException ex) {

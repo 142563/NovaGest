@@ -1,11 +1,21 @@
 package com.proyecto.tramites.tramites.service;
 
+import com.proyecto.tramites.comun.excepcion.DatosInvalidosException;
 import com.proyecto.tramites.comun.util.Paginacion;
+import com.proyecto.tramites.tramites.dto.CampoTipoRequest;
 import com.proyecto.tramites.tramites.dto.TipoTramiteRequest;
 import com.proyecto.tramites.tramites.dto.TipoTramiteResponse;
+import com.proyecto.tramites.tramites.entity.CampoTipoTramite;
+import com.proyecto.tramites.tramites.entity.TipoDato;
 import com.proyecto.tramites.tramites.entity.TipoTramite;
 import com.proyecto.tramites.tramites.repository.TipoTramiteRepository;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -16,6 +26,7 @@ import org.springframework.web.server.ResponseStatusException;
 /**
  * Reglas de los tipos de tramite. Quien puede editar (tipo_tramite:editar) ve tambien los inactivos;
  * los demas solo ven los activos y piden uno inactivo como si no existiera (404).
+ * Cada tipo declara los campos que valida los datos de sus tramites.
  */
 @Service
 public class TipoTramiteService {
@@ -51,6 +62,9 @@ public class TipoTramiteService {
 		}
 		TipoTramite tipo = new TipoTramite(nombre, limpiar(solicitud.descripcion()), solicitud.monto(),
 				solicitud.activoONulo());
+		if (solicitud.campos() != null) {
+			sincronizarCampos(tipo, solicitud.campos());
+		}
 		return TipoTramiteResponse.de(tipos.saveAndFlush(tipo));
 	}
 
@@ -62,6 +76,9 @@ public class TipoTramiteService {
 			throw nombreEnUso();
 		}
 		tipo.actualizar(nombre, limpiar(solicitud.descripcion()), solicitud.monto(), solicitud.activoONulo());
+		if (solicitud.campos() != null) {
+			sincronizarCampos(tipo, solicitud.campos());
+		}
 		return TipoTramiteResponse.de(tipos.saveAndFlush(tipo));
 	}
 
@@ -71,6 +88,58 @@ public class TipoTramiteService {
 		TipoTramite tipo = buscar(id, true);
 		tipo.eliminarLogicamente();
 		tipos.saveAndFlush(tipo);
+	}
+
+	/**
+	 * Deja en el tipo exactamente los campos pedidos. Se actualizan los que ya existen (misma clave),
+	 * se crean los nuevos y se quitan los que ya no estan; asi no choca la clave unica de la base.
+	 */
+	private void sincronizarCampos(TipoTramite tipo, List<CampoTipoRequest> pedidos) {
+		validarCampos(pedidos);
+		Map<String, CampoTipoTramite> actuales = new HashMap<>();
+		tipo.getCampos().forEach(campo -> actuales.put(campo.getClave(), campo));
+		Set<String> clavesPedidas = new HashSet<>();
+		pedidos.forEach(pedido -> clavesPedidas.add(pedido.clave()));
+		tipo.getCampos().removeIf(campo -> !clavesPedidas.contains(campo.getClave()));
+		int posicion = 0;
+		for (CampoTipoRequest pedido : pedidos) {
+			CampoTipoTramite campo = actuales.get(pedido.clave());
+			if (campo == null) {
+				campo = new CampoTipoTramite(tipo);
+				tipo.getCampos().add(campo);
+			}
+			campo.definir(pedido.clave(), pedido.etiqueta().trim(), pedido.tipoDato(), pedido.obligatorioONulo(),
+					limpiar(pedido.patron()), pedido.minimo(), pedido.orden() != null ? pedido.orden() : posicion);
+			posicion++;
+		}
+	}
+
+	private static void validarCampos(List<CampoTipoRequest> pedidos) {
+		DatosInvalidosException.Acumulador errores = new DatosInvalidosException.Acumulador();
+		Set<String> vistas = new HashSet<>();
+		for (int i = 0; i < pedidos.size(); i++) {
+			CampoTipoRequest pedido = pedidos.get(i);
+			String ruta = "campos[" + i + "]";
+			if (!vistas.add(pedido.clave())) {
+				errores.agregar(ruta + ".clave", "La clave esta repetida en el tipo");
+			}
+			String patron = limpiar(pedido.patron());
+			if (patron != null && pedido.tipoDato() != TipoDato.TEXTO) {
+				errores.agregar(ruta + ".patron", "El patron solo aplica a campos de tipo TEXTO");
+			}
+			else if (patron != null) {
+				try {
+					Pattern.compile(patron);
+				}
+				catch (PatternSyntaxException e) {
+					errores.agregar(ruta + ".patron", "No es una expresion regular valida");
+				}
+			}
+			if (pedido.minimo() != null && pedido.tipoDato() != TipoDato.NUMERO) {
+				errores.agregar(ruta + ".minimo", "El minimo solo aplica a campos de tipo NUMERO");
+			}
+		}
+		errores.lanzarSiHayErrores();
 	}
 
 	private TipoTramite buscar(Long id, boolean administra) {
