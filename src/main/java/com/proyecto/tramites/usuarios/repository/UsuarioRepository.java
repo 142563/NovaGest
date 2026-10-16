@@ -11,6 +11,10 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
 	@EntityGraph(attributePaths = { "roles", "roles.permisos" })
 	Optional<Usuario> findByCorreoIgnoreCaseAndEliminadoEnIsNull(String correo);
 
+	/** Para resolver los permisos en cada peticion: el token trae el id, los permisos salen de aqui. */
+	@EntityGraph(attributePaths = { "roles", "roles.permisos" })
+	Optional<Usuario> findConRolesYPermisosByIdAndEliminadoEnIsNull(Long id);
+
 	boolean existsByCorreoIgnoreCaseAndEliminadoEnIsNull(String correo);
 
 }
