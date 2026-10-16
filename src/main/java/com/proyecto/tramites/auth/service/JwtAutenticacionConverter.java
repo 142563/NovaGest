@@ -1,8 +1,10 @@
 package com.proyecto.tramites.auth.service;
 
+import com.proyecto.tramites.comun.util.Actor;
 import com.proyecto.tramites.usuarios.entity.Usuario;
 import com.proyecto.tramites.usuarios.repository.UsuarioRepository;
 import java.time.Clock;
+import java.util.ArrayList;
 import java.util.List;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.security.core.GrantedAuthority;
@@ -34,10 +36,14 @@ public class JwtAutenticacionConverter implements Converter<Jwt, JwtAuthenticati
 				.flatMap(usuarios::findConRolesYPermisosByIdAndEliminadoEnIsNull)
 				.filter(u -> u.isActivo() && !u.estaBloqueado(reloj.instant()))
 				.orElseThrow(() -> new InvalidBearerTokenException("Token no valido"));
-		List<GrantedAuthority> permisos = usuario.permisosEfectivos().stream()
+		List<GrantedAuthority> permisos = new ArrayList<>(usuario.permisosEfectivos().stream()
 				.sorted()
 				.<GrantedAuthority>map(SimpleGrantedAuthority::new)
-				.toList();
+				.toList());
+		// Si algun rol tiene alcance sobre todos los registros, se marca para que los servicios no vean solo lo propio
+		if (usuario.tieneAlcanceTotal()) {
+			permisos.add(new SimpleGrantedAuthority(Actor.AUTORIDAD_ALCANCE_TOTAL));
+		}
 		// El nombre del principal es el id del usuario: los servicios lo comparan con el dueno del dato
 		return new JwtAuthenticationToken(jwt, permisos, String.valueOf(usuario.getId()));
 	}

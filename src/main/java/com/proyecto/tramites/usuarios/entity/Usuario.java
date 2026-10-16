@@ -87,6 +87,11 @@ public class Usuario {
 				.collect(Collectors.toSet());
 	}
 
+	/** Verdadero si alguno de sus roles tiene alcance sobre los registros de todos. */
+	public boolean tieneAlcanceTotal() {
+		return roles.stream().anyMatch(Rol::isAlcanceTotal);
+	}
+
 	public boolean estaBloqueado(Instant ahora) {
 		return bloqueadoHasta != null && bloqueadoHasta.isAfter(ahora);
 	}

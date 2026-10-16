@@ -1,15 +1,21 @@
 package com.proyecto.tramites.tramites.entity;
 
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.OrderBy;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
+import org.hibernate.annotations.BatchSize;
 
 /** Tipo de tramite (boleto de ornato, pago de IGSS...). Se elimina de forma logica. */
 @Entity
@@ -31,6 +37,12 @@ public class TipoTramite {
 
 	@Column(nullable = false)
 	private boolean activo = true;
+
+	/** Campos que declara este tipo; los datos de cada tramite se validan contra ellos. */
+	@OneToMany(mappedBy = "tipoTramite", cascade = CascadeType.ALL, orphanRemoval = true)
+	@OrderBy("orden ASC, id ASC")
+	@BatchSize(size = 50)
+	private List<CampoTipoTramite> campos = new ArrayList<>();
 
 	@Column(name = "creado_en", nullable = false, updatable = false)
 	private Instant creadoEn;
@@ -90,6 +102,10 @@ public class TipoTramite {
 
 	public boolean isActivo() {
 		return activo;
+	}
+
+	public List<CampoTipoTramite> getCampos() {
+		return campos;
 	}
 
 	public Instant getCreadoEn() {

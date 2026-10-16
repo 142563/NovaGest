@@ -31,6 +31,10 @@ public class Rol {
 	@Column(length = 255)
 	private String descripcion;
 
+	/** Si es verdadero, el rol ve y toca los registros de todos; si no, solo los propios. */
+	@Column(name = "alcance_total", nullable = false)
+	private boolean alcanceTotal;
+
 	@ManyToMany(fetch = FetchType.LAZY)
 	@JoinTable(name = "rol_permiso",
 			joinColumns = @JoinColumn(name = "rol_id"),
@@ -72,6 +76,10 @@ public class Rol {
 
 	public String getDescripcion() {
 		return descripcion;
+	}
+
+	public boolean isAlcanceTotal() {
+		return alcanceTotal;
 	}
 
 	public Set<Permiso> getPermisos() {
