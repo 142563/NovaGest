@@ -23,4 +23,10 @@ class ControladorDePruebaSeguridad {
 		return "ok";
 	}
 
+	/** Falla a proposito para comprobar que el 500 no filtra el mensaje interno. */
+	@GetMapping("/api/_prueba/falla")
+	String falla() {
+		throw new IllegalStateException("detalle-secreto-interno-123");
+	}
+
 }

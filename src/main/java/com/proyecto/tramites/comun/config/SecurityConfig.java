@@ -2,6 +2,7 @@ package com.proyecto.tramites.comun.config;
 
 import com.nimbusds.jose.jwk.source.ImmutableSecret;
 import com.proyecto.tramites.auth.service.JwtAutenticacionConverter;
+import com.proyecto.tramites.comun.excepcion.ProblemaSeguridad;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import javax.crypto.SecretKey;
@@ -76,7 +77,8 @@ public class SecurityConfig {
 	}
 
 	@Bean
-	SecurityFilterChain filterChain(HttpSecurity http, JwtAutenticacionConverter conversor) throws Exception {
+	SecurityFilterChain filterChain(HttpSecurity http, JwtAutenticacionConverter conversor,
+			ProblemaSeguridad problemas) throws Exception {
 		http
 				.csrf(csrf -> csrf.disable())
 				.sessionManagement(sesion -> sesion.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -86,7 +88,13 @@ public class SecurityConfig {
 						.requestMatchers(HttpMethod.POST, "/api/auth/registro", "/api/auth/login").permitAll()
 						.requestMatchers("/actuator/health").permitAll()
 						.anyRequest().authenticated())
-				.oauth2ResourceServer(recurso -> recurso.jwt(jwt -> jwt.jwtAuthenticationConverter(conversor)));
+				.exceptionHandling(errores -> errores
+						.authenticationEntryPoint(problemas)
+						.accessDeniedHandler(problemas))
+				.oauth2ResourceServer(recurso -> recurso
+						.authenticationEntryPoint(problemas)
+						.accessDeniedHandler(problemas)
+						.jwt(jwt -> jwt.jwtAuthenticationConverter(conversor)));
 		return http.build();
 	}
 
