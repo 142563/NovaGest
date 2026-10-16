@@ -1,6 +1,7 @@
 package com.proyecto.tramites.comun.config;
 
 import com.nimbusds.jose.jwk.source.ImmutableSecret;
+import com.proyecto.tramites.auth.service.JwtAutenticacionConverter;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import javax.crypto.SecretKey;
@@ -9,21 +10,27 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
-import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
+import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 
 /**
- * Configuracion base de seguridad. Denegar por defecto: solo registro, login y salud son publicos.
- * La validacion del token en cada peticion (filtro) llega con la tarjeta 9.
+ * Seguridad de la API. Denegar por defecto: solo registro, login y salud son publicos; todo lo demas
+ * exige un token de acceso valido. Sin token valido responde 401; con token pero sin permiso, 403.
+ * Los permisos por endpoint se declaran con @PreAuthorize (habilitado por @EnableMethodSecurity).
  */
 @Configuration
+@EnableMethodSecurity
 @EnableConfigurationProperties(JwtProperties.class)
 public class SecurityConfig {
 
@@ -54,6 +61,12 @@ public class SecurityConfig {
 		return new NimbusJwtEncoder(new ImmutableSecret<>(jwtKey));
 	}
 
+	/** Valida firma (solo HS256 con nuestra clave) y vencimiento de cada token que llega. */
+	@Bean
+	JwtDecoder jwtDecoder(SecretKey jwtKey) {
+		return NimbusJwtDecoder.withSecretKey(jwtKey).macAlgorithm(MacAlgorithm.HS256).build();
+	}
+
 	/** Evita que Spring cree un usuario de arranque con clave aleatoria. Los usuarios reales salen de la base. */
 	@Bean
 	UserDetailsService sinUsuariosPorDefecto() {
@@ -63,7 +76,7 @@ public class SecurityConfig {
 	}
 
 	@Bean
-	SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+	SecurityFilterChain filterChain(HttpSecurity http, JwtAutenticacionConverter conversor) throws Exception {
 		http
 				.csrf(csrf -> csrf.disable())
 				.sessionManagement(sesion -> sesion.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -72,7 +85,8 @@ public class SecurityConfig {
 				.authorizeHttpRequests(rutas -> rutas
 						.requestMatchers(HttpMethod.POST, "/api/auth/registro", "/api/auth/login").permitAll()
 						.requestMatchers("/actuator/health").permitAll()
-						.anyRequest().authenticated());
+						.anyRequest().authenticated())
+				.oauth2ResourceServer(recurso -> recurso.jwt(jwt -> jwt.jwtAuthenticationConverter(conversor)));
 		return http.build();
 	}
 
