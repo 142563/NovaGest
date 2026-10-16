@@ -79,6 +79,20 @@ public class Tramite {
 		actualizadoEn = Instant.now();
 	}
 
+	/** Solo lo llama el servicio de transiciones, despues de validar que la transicion es valida. */
+	public void cambiarEstado(EstadoTramite nuevo) {
+		this.estado = nuevo;
+	}
+
+	public void asignarGestor(Long gestorId) {
+		this.gestorId = gestorId;
+	}
+
+	/** Ultimo comentario de observacion o rechazo, para que el ciudadano sepa que corregir. */
+	public void registrarMotivo(String motivo) {
+		this.motivo = motivo;
+	}
+
 	public void reemplazarDatos(String datos) {
 		this.datos = datos;
 	}

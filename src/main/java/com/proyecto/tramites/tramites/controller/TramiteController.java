@@ -1,11 +1,15 @@
 package com.proyecto.tramites.tramites.controller;
 
 import com.proyecto.tramites.comun.util.Actor;
+import com.proyecto.tramites.tramites.dto.HistorialResponse;
 import com.proyecto.tramites.tramites.dto.TramiteActualizarRequest;
 import com.proyecto.tramites.tramites.dto.TramiteRequest;
 import com.proyecto.tramites.tramites.dto.TramiteResponse;
+import com.proyecto.tramites.tramites.dto.TransicionRequest;
 import com.proyecto.tramites.tramites.service.TramiteService;
+import com.proyecto.tramites.tramites.service.TransicionTramiteService;
 import jakarta.validation.Valid;
+import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -29,9 +33,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class TramiteController {
 
 	private final TramiteService servicio;
+	private final TransicionTramiteService transiciones;
 
-	public TramiteController(TramiteService servicio) {
+	public TramiteController(TramiteService servicio, TransicionTramiteService transiciones) {
 		this.servicio = servicio;
+		this.transiciones = transiciones;
 	}
 
 	/** Permiso: tramite:leer. Propios o todos segun el alcance del rol. Orden: id, creadoEn, estado. */
@@ -64,6 +70,24 @@ public class TramiteController {
 	public TramiteResponse actualizar(@PathVariable Long id, @Valid @RequestBody TramiteActualizarRequest solicitud,
 			Authentication autenticacion) {
 		return servicio.actualizar(Actor.de(autenticacion), id, solicitud);
+	}
+
+	/**
+	 * Permiso: tramite:editar, mas la regla de la transicion (quien puede y en que estado). Es el unico
+	 * camino para cambiar el estado. Transicion que no existe: 409; sin autoridad para ella: 403.
+	 */
+	@PostMapping("/{id}/transiciones")
+	@PreAuthorize("hasAuthority('tramite:editar')")
+	public TramiteResponse transicionar(@PathVariable Long id, @Valid @RequestBody TransicionRequest solicitud,
+			Authentication autenticacion) {
+		return transiciones.transicionar(Actor.de(autenticacion), id, solicitud);
+	}
+
+	/** Permiso: tramite:leer. Cambios de estado del tramite, del mas antiguo al mas reciente. */
+	@GetMapping("/{id}/historial")
+	@PreAuthorize("hasAuthority('tramite:leer')")
+	public List<HistorialResponse> historial(@PathVariable Long id, Authentication autenticacion) {
+		return servicio.historial(Actor.de(autenticacion), id);
 	}
 
 	/** Permiso: tramite:eliminar. Borrado logico. */

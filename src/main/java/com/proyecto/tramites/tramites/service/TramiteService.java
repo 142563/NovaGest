@@ -3,13 +3,17 @@ package com.proyecto.tramites.tramites.service;
 import com.proyecto.tramites.comun.excepcion.DatosInvalidosException;
 import com.proyecto.tramites.comun.util.Actor;
 import com.proyecto.tramites.comun.util.Paginacion;
+import com.proyecto.tramites.tramites.dto.HistorialResponse;
 import com.proyecto.tramites.tramites.dto.TramiteActualizarRequest;
 import com.proyecto.tramites.tramites.dto.TramiteRequest;
 import com.proyecto.tramites.tramites.dto.TramiteResponse;
 import com.proyecto.tramites.tramites.entity.TipoTramite;
 import com.proyecto.tramites.tramites.entity.Tramite;
+import com.proyecto.tramites.tramites.entity.TramiteHistorial;
 import com.proyecto.tramites.tramites.repository.TipoTramiteRepository;
+import com.proyecto.tramites.tramites.repository.TramiteHistorialRepository;
 import com.proyecto.tramites.tramites.repository.TramiteRepository;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.springframework.data.domain.Page;
@@ -32,11 +36,14 @@ public class TramiteService {
 	private final TramiteRepository tramites;
 	private final TipoTramiteRepository tipos;
 	private final ValidadorDatosTramite validador;
+	private final TramiteHistorialRepository historial;
 
-	public TramiteService(TramiteRepository tramites, TipoTramiteRepository tipos, ValidadorDatosTramite validador) {
+	public TramiteService(TramiteRepository tramites, TipoTramiteRepository tipos, ValidadorDatosTramite validador,
+			TramiteHistorialRepository historial) {
 		this.tramites = tramites;
 		this.tipos = tipos;
 		this.validador = validador;
+		this.historial = historial;
 	}
 
 	/** Abre un tramite en Borrador a nombre de quien lo pide. Los datos pueden estar incompletos. */
@@ -47,7 +54,16 @@ public class TramiteService {
 				.orElseThrow(() -> DatosInvalidosException.de("tipoId", "El tipo de tramite no existe o no esta activo"));
 		Map<String, Object> datos = validador.validar(tipo, solicitud.datos());
 		Tramite tramite = tramites.saveAndFlush(new Tramite(tipo, actor.id(), validador.aJson(datos)));
+		// La primera fila del historial es la creacion: no hay estado anterior
+		historial.save(new TramiteHistorial(tramite.getId(), null, tramite.getEstado(), actor.id(), null));
 		return TramiteResponse.de(tramite, datos);
+	}
+
+	/** Historial de cambios de estado, del mas antiguo al mas reciente. Mismas reglas de visibilidad que el tramite. */
+	@Transactional(readOnly = true)
+	public List<HistorialResponse> historial(Actor actor, Long id) {
+		buscarVisible(actor, id);
+		return historial.findByTramiteIdOrderByIdAsc(id).stream().map(HistorialResponse::de).toList();
 	}
 
 	@Transactional(readOnly = true)
