@@ -1,4 +1,4 @@
-# Etapa 1: compila el jar con el wrapper de Maven
+﻿# Etapa 1: compila el jar con el wrapper de Maven
 FROM eclipse-temurin:21-jdk AS build
 WORKDIR /app
 COPY mvnw pom.xml ./
@@ -12,6 +12,8 @@ FROM eclipse-temurin:21-jre
 WORKDIR /app
 RUN groupadd --system novagest && useradd --system --gid novagest novagest
 COPY --from=build /app/target/*.jar app.jar
+RUN mkdir -p /data/comprobantes && chown novagest:novagest /data/comprobantes
+ENV COMPROBANTES_DIR=/data/comprobantes
 USER novagest
 EXPOSE 8080
 ENTRYPOINT ["java", "-jar", "app.jar"]

@@ -1,5 +1,6 @@
 package com.proyecto.tramites.usuarios.controller;
 
+import com.proyecto.tramites.comun.util.SoloAutenticado;
 import com.proyecto.tramites.usuarios.dto.PerfilResponse;
 import com.proyecto.tramites.usuarios.service.UsuarioService;
 import org.springframework.security.core.Authentication;
@@ -19,6 +20,7 @@ public class UsuarioController {
 
 	/** Solo exige estar autenticado: devuelve el perfil de quien hace la peticion. */
 	@GetMapping("/yo")
+	@SoloAutenticado
 	public PerfilResponse yo(Authentication autenticacion) {
 		return servicio.perfilDe(Long.valueOf(autenticacion.getName()));
 	}
