@@ -1,4 +1,4 @@
--- Tarjeta 22: tipos de cambio guardados (borrador para revision del DBA). Version 9: la 7 es pagos y la 8 ingresos.
+-- Tarjeta 22: tipos de cambio guardados (borrador para revision del DBA). Version 10: la 8 es ingresos y la 9 pagos.
 -- Cache de lo que publica el Banguat: un valor por fecha y moneda (codigo del Banguat).
 -- Si el Banguat no responde, la API usa el ultimo valor guardado y lo marca como estimado (RNF-04).
 -- valor: tal como lo publica el Banguat (venta); su significado depende de la moneda (ConvencionCotizacion).
