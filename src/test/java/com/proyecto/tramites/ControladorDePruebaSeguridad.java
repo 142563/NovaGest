@@ -1,5 +1,6 @@
 package com.proyecto.tramites;
 
+import com.proyecto.tramites.comun.util.SoloAutenticado;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -25,6 +26,7 @@ class ControladorDePruebaSeguridad {
 
 	/** Falla a proposito para comprobar que el 500 no filtra el mensaje interno. */
 	@GetMapping("/api/_prueba/falla")
+	@SoloAutenticado
 	String falla() {
 		throw new IllegalStateException("detalle-secreto-interno-123");
 	}
