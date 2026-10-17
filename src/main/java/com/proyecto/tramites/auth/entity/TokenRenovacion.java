@@ -55,6 +55,19 @@ public class TokenRenovacion {
 		creadoEn = Instant.now();
 	}
 
+	/** Se canjeo por un par nuevo: no sirve otra vez. Presentarlo de nuevo indica un posible robo. */
+	public void marcarUsado(Instant cuando) {
+		this.usadoEn = cuando;
+	}
+
+	public void revocar(Instant cuando) {
+		this.revocadoEn = cuando;
+	}
+
+	public boolean estaVencido(Instant ahora) {
+		return !venceEn.isAfter(ahora);
+	}
+
 	public Long getId() {
 		return id;
 	}

@@ -1,6 +1,7 @@
 package com.proyecto.tramites.comun.config;
 
 import com.proyecto.tramites.auth.controller.AuthController;
+import com.proyecto.tramites.comun.util.SoloAutenticado;
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Info;
@@ -49,8 +50,10 @@ public class OpenApiConfig {
 	@Bean
 	OperationCustomizer permisoEnCadaOperacion() {
 		return (operacion, metodo) -> {
-			if (AuthController.class.isAssignableFrom(metodo.getBeanType())) {
-				operacion.setSecurity(List.of()); // registro y login son publicos
+			// registro, login y refresh son publicos; logout exige sesion (lleva @SoloAutenticado) y sigue la ruta general
+			if (AuthController.class.isAssignableFrom(metodo.getBeanType())
+					&& !AnnotatedElementUtils.hasAnnotation(metodo.getMethod(), SoloAutenticado.class)) {
+				operacion.setSecurity(List.of());
 				return operacion.description(unir(operacion.getDescription(), "Publico: no requiere token."));
 			}
 
