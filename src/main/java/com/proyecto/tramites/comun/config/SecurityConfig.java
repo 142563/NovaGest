@@ -32,7 +32,7 @@ import org.springframework.security.web.SecurityFilterChain;
  */
 @Configuration
 @EnableMethodSecurity
-@EnableConfigurationProperties(JwtProperties.class)
+@EnableConfigurationProperties({ JwtProperties.class, LoginProperties.class })
 public class SecurityConfig {
 
 	private static final int MINIMO_BYTES_CLAVE = 32;
@@ -85,7 +85,8 @@ public class SecurityConfig {
 				.httpBasic(basic -> basic.disable())
 				.formLogin(form -> form.disable())
 				.authorizeHttpRequests(rutas -> rutas
-						.requestMatchers(HttpMethod.POST, "/api/auth/registro", "/api/auth/login").permitAll()
+						.requestMatchers(HttpMethod.POST, "/api/auth/registro", "/api/auth/login", "/api/auth/refresh")
+						.permitAll()
 						.requestMatchers("/actuator/health").permitAll()
 						// Tarjeta 5: documentacion publica para la demostracion (en prod se apaga con springdoc.*)
 						.requestMatchers(HttpMethod.GET, "/v3/api-docs", "/v3/api-docs/**", "/swagger-ui.html",
