@@ -72,16 +72,13 @@ public class BanguatClient {
 	private final BanguatProperties propiedades;
 	private final HttpClient http;
 
+	/** Un solo constructor: Spring lo usa para crear el cliente con la configuracion app.banguat.*. */
 	public BanguatClient(BanguatProperties propiedades) {
-		this(propiedades, HttpClient.newBuilder()
+		this.propiedades = propiedades;
+		this.http = HttpClient.newBuilder()
 				.connectTimeout(propiedades.tiempoEspera())
 				.followRedirects(HttpClient.Redirect.NEVER)
-				.build());
-	}
-
-	BanguatClient(BanguatProperties propiedades, HttpClient http) {
-		this.propiedades = propiedades;
-		this.http = http;
+				.build();
 	}
 
 	/** Tipo de cambio de referencia del dolar para hoy (TipoCambioDia). */
