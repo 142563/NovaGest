@@ -16,6 +16,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.multipart.MultipartException;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
 /**
@@ -52,6 +53,15 @@ public class ManejadorGlobalErrores extends ResponseEntityExceptionHandler {
 				"La solicitud tiene campos invalidos");
 		problema.setTitle("Solicitud invalida");
 		problema.setProperty("errores", ex.getErrores());
+		return problema;
+	}
+
+	/** 400 cuando se espera un archivo (multipart/form-data) y la peticion no lo trae o llega mal formada. */
+	@ExceptionHandler(MultipartException.class)
+	ProblemDetail archivoNoValido(MultipartException ex) {
+		ProblemDetail problema = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST,
+				"La peticion debe enviarse como multipart/form-data con el archivo en el campo indicado");
+		problema.setTitle("Solicitud invalida");
 		return problema;
 	}
 
