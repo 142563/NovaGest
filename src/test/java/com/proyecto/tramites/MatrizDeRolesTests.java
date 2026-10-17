@@ -53,7 +53,8 @@ import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandl
 class MatrizDeRolesTests {
 
 	/** Unicas rutas que no exigen token. Cualquier otra que lo omita es un error. */
-	static final Set<String> PUBLICOS = Set.of("POST /api/auth/registro", "POST /api/auth/login");
+	static final Set<String> PUBLICOS = Set.of("POST /api/auth/registro", "POST /api/auth/login",
+			"POST /api/auth/refresh");
 
 	/** Endpoints de prueba que fallan a proposito; no forman parte de la matriz. */
 	private static final Set<String> EXCLUIDOS = Set.of("GET /api/_prueba/falla");
