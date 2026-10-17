@@ -23,6 +23,14 @@ docker compose up --build    # app en http://localhost:8080, base en el puerto D
 docker compose down          # detiene; agregar -v borra tambien los datos de la base
 ```
 
+## Salud y documentacion de la API
+Con la app levantada (perfil `dev`), sin necesidad de token:
+- Salud: http://localhost:8080/actuator/health (responde `{"status":"UP"}`, sin detalles internos)
+- Swagger UI: http://localhost:8080/swagger-ui.html
+- OpenAPI en JSON: http://localhost:8080/v3/api-docs
+
+Para probar endpoints protegidos en Swagger: ejecutar `POST /api/auth/login`, copiar el `accessToken` y pegarlo en **Authorize**. Cada operacion indica el permiso que exige. En el perfil `prod` la documentacion esta apagada.
+
 ## Configuracion
 Copiar `.env.example` a `.env` y completar. Los secretos entran solo por variables de entorno; `.env` esta en `.gitignore`.
 
