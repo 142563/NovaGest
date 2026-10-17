@@ -1,5 +1,6 @@
 package com.proyecto.tramites.tramites.controller;
 
+import com.proyecto.tramites.comun.util.Actor;
 import com.proyecto.tramites.tramites.dto.TipoTramiteRequest;
 import com.proyecto.tramites.tramites.dto.TipoTramiteResponse;
 import com.proyecto.tramites.tramites.service.TipoTramiteService;
@@ -53,23 +54,24 @@ public class TipoTramiteController {
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
 	@PreAuthorize("hasAuthority('tipo_tramite:crear')")
-	public TipoTramiteResponse crear(@Valid @RequestBody TipoTramiteRequest solicitud) {
-		return servicio.crear(solicitud);
+	public TipoTramiteResponse crear(@Valid @RequestBody TipoTramiteRequest solicitud, Authentication autenticacion) {
+		return servicio.crear(Actor.de(autenticacion), solicitud);
 	}
 
 	/** Permiso: tipo_tramite:editar. */
 	@PutMapping("/{id}")
 	@PreAuthorize("hasAuthority('tipo_tramite:editar')")
-	public TipoTramiteResponse actualizar(@PathVariable Long id, @Valid @RequestBody TipoTramiteRequest solicitud) {
-		return servicio.actualizar(id, solicitud);
+	public TipoTramiteResponse actualizar(@PathVariable Long id, @Valid @RequestBody TipoTramiteRequest solicitud,
+			Authentication autenticacion) {
+		return servicio.actualizar(Actor.de(autenticacion), id, solicitud);
 	}
 
 	/** Permiso: tipo_tramite:eliminar. Borrado logico. */
 	@DeleteMapping("/{id}")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	@PreAuthorize("hasAuthority('tipo_tramite:eliminar')")
-	public void eliminar(@PathVariable Long id) {
-		servicio.eliminar(id);
+	public void eliminar(@PathVariable Long id, Authentication autenticacion) {
+		servicio.eliminar(Actor.de(autenticacion), id);
 	}
 
 	private static boolean puedeEditar(Authentication autenticacion) {
