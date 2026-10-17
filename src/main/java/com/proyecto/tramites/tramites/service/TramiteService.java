@@ -4,6 +4,7 @@ import com.proyecto.tramites.comun.excepcion.DatosInvalidosException;
 import com.proyecto.tramites.comun.util.Actor;
 import com.proyecto.tramites.comun.util.Paginacion;
 import com.proyecto.tramites.tramites.dto.HistorialResponse;
+import com.proyecto.tramites.tramites.dto.FiltroTramites;
 import com.proyecto.tramites.tramites.dto.TramiteActualizarRequest;
 import com.proyecto.tramites.tramites.dto.TramiteRequest;
 import com.proyecto.tramites.tramites.dto.TramiteResponse;
@@ -12,6 +13,7 @@ import com.proyecto.tramites.tramites.entity.Tramite;
 import com.proyecto.tramites.tramites.entity.TramiteHistorial;
 import com.proyecto.tramites.tramites.repository.TipoTramiteRepository;
 import com.proyecto.tramites.tramites.repository.TramiteHistorialRepository;
+import com.proyecto.tramites.tramites.repository.TramiteEspecificaciones;
 import com.proyecto.tramites.tramites.repository.TramiteRepository;
 import java.util.List;
 import java.util.Map;
@@ -68,10 +70,18 @@ public class TramiteService {
 
 	@Transactional(readOnly = true)
 	public Page<TramiteResponse> listar(Actor actor, Pageable paginacion) {
+		return listar(actor, FiltroTramites.sinFiltros(), paginacion);
+	}
+
+	/**
+	 * Tarjeta 17: listado con filtros por estado, tipo y fechas de creacion. El alcance se aplica igual:
+	 * un ciudadano filtra solo dentro de sus propios tramites.
+	 */
+	@Transactional(readOnly = true)
+	public Page<TramiteResponse> listar(Actor actor, FiltroTramites filtro, Pageable paginacion) {
 		Pageable pagina = Paginacion.validarOrden(paginacion, ORDENABLES);
-		Page<Tramite> resultado = actor.alcanceTotal()
-				? tramites.findByEliminadoEnIsNull(pagina)
-				: tramites.findByCiudadanoIdAndEliminadoEnIsNull(actor.id(), pagina);
+		Long dueno = actor.alcanceTotal() ? null : actor.id();
+		Page<Tramite> resultado = tramites.findAll(TramiteEspecificaciones.listado(dueno, filtro), pagina);
 		return resultado.map(tramite -> TramiteResponse.de(tramite, validador.deJson(tramite.getDatos())));
 	}
 
