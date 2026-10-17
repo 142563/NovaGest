@@ -26,7 +26,7 @@ import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 
 /**
- * Seguridad de la API. Denegar por defecto: solo registro, login y salud son publicos; todo lo demas
+ * Seguridad de la API. Denegar por defecto: solo registro, login, salud y la documentacion son publicos; todo lo demas
  * exige un token de acceso valido. Sin token valido responde 401; con token pero sin permiso, 403.
  * Los permisos por endpoint se declaran con @PreAuthorize (habilitado por @EnableMethodSecurity).
  */
@@ -87,6 +87,9 @@ public class SecurityConfig {
 				.authorizeHttpRequests(rutas -> rutas
 						.requestMatchers(HttpMethod.POST, "/api/auth/registro", "/api/auth/login").permitAll()
 						.requestMatchers("/actuator/health").permitAll()
+						// Tarjeta 5: documentacion publica para la demostracion (en prod se apaga con springdoc.*)
+						.requestMatchers(HttpMethod.GET, "/v3/api-docs", "/v3/api-docs/**", "/swagger-ui.html",
+								"/swagger-ui/**").permitAll()
 						.anyRequest().authenticated())
 				.exceptionHandling(errores -> errores
 						.authenticationEntryPoint(problemas)
