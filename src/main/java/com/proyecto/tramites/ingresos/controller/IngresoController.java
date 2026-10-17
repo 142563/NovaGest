@@ -3,7 +3,9 @@ package com.proyecto.tramites.ingresos.controller;
 import com.proyecto.tramites.comun.util.Actor;
 import com.proyecto.tramites.ingresos.dto.IngresoRequest;
 import com.proyecto.tramites.ingresos.dto.IngresoResponse;
+import com.proyecto.tramites.ingresos.dto.ProyeccionResponse;
 import com.proyecto.tramites.ingresos.service.IngresoService;
+import com.proyecto.tramites.ingresos.service.ProyeccionService;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -32,9 +34,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class IngresoController {
 
 	private final IngresoService servicio;
+	private final ProyeccionService proyecciones;
 
-	public IngresoController(IngresoService servicio) {
+	public IngresoController(IngresoService servicio, ProyeccionService proyecciones) {
 		this.servicio = servicio;
+		this.proyecciones = proyecciones;
 	}
 
 	/**
@@ -48,6 +52,20 @@ public class IngresoController {
 			@PageableDefault(size = 20, sort = "fecha", direction = Sort.Direction.DESC) Pageable paginacion,
 			Authentication autenticacion) {
 		return servicio.listar(Actor.de(autenticacion).id(), desde, hasta, paginacion);
+	}
+
+	/**
+	 * Permiso: ingreso:leer. Tarjeta 22: proyecta la suma de los ingresos propios a otra moneda (codigo ISO, ver
+	 * /api/divisas/monedas) con el tipo de cambio del Banguat de la fecha indicada (por defecto hoy). Filtros
+	 * opcionales desde y hasta sobre la fecha de los ingresos. Si el Banguat no responde, usa el ultimo valor
+	 * guardado y marca la respuesta como estimada.
+	 */
+	@GetMapping("/proyeccion")
+	@PreAuthorize("hasAuthority('ingreso:leer')")
+	public ProyeccionResponse proyeccion(@RequestParam(required = false) String moneda,
+			@RequestParam(required = false) String desde, @RequestParam(required = false) String hasta,
+			@RequestParam(required = false) String fecha, Authentication autenticacion) {
+		return proyecciones.proyectar(Actor.de(autenticacion).id(), moneda, desde, hasta, fecha);
 	}
 
 	/** Permiso: ingreso:leer. Un ingreso ajeno responde 404. */
