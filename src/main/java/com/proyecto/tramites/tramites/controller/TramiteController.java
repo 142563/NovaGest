@@ -2,6 +2,7 @@ package com.proyecto.tramites.tramites.controller;
 
 import com.proyecto.tramites.comun.util.Actor;
 import com.proyecto.tramites.tramites.dto.HistorialResponse;
+import com.proyecto.tramites.tramites.dto.FiltroTramites;
 import com.proyecto.tramites.tramites.dto.TramiteActualizarRequest;
 import com.proyecto.tramites.tramites.dto.TramiteRequest;
 import com.proyecto.tramites.tramites.dto.TramiteResponse;
@@ -24,6 +25,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -40,13 +42,22 @@ public class TramiteController {
 		this.transiciones = transiciones;
 	}
 
-	/** Permiso: tramite:leer. Propios o todos segun el alcance del rol. Orden: id, creadoEn, estado. */
+	/**
+	 * Permiso: tramite:leer. Propios o todos segun el alcance del rol. Orden: id, creadoEn, estado.
+	 * Filtros opcionales (tarjeta 17), combinados con Y: estado (uno o varios, repetido o separado por
+	 * comas), tipoId, desde y hasta (fecha de creacion AAAA-MM-DD, ambas incluidas, hora de Guatemala).
+	 */
 	@GetMapping
 	@PreAuthorize("hasAuthority('tramite:leer')")
 	public Page<TramiteResponse> listar(
+			@RequestParam(name = "estado", required = false) List<String> estado,
+			@RequestParam(required = false) String tipoId,
+			@RequestParam(required = false) String desde,
+			@RequestParam(required = false) String hasta,
 			@PageableDefault(size = 20, sort = "creadoEn", direction = Sort.Direction.DESC) Pageable paginacion,
 			Authentication autenticacion) {
-		return servicio.listar(Actor.de(autenticacion), paginacion);
+		FiltroTramites filtro = FiltroTramites.de(estado, tipoId, desde, hasta);
+		return servicio.listar(Actor.de(autenticacion), filtro, paginacion);
 	}
 
 	/** Permiso: tramite:leer. Un tramite ajeno responde 404. */
