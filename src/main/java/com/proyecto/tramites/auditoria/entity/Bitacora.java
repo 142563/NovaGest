@@ -53,13 +53,15 @@ public class Bitacora {
 	protected Bitacora() {
 	}
 
-	public Bitacora(Long actorId, String accion, String recurso, Long recursoId, String antes, String despues) {
+	public Bitacora(Long actorId, String accion, String recurso, Long recursoId, String antes, String despues,
+			String ip) {
 		this.actorId = actorId;
 		this.accion = accion;
 		this.recurso = recurso;
 		this.recursoId = recursoId;
 		this.antes = antes;
 		this.despues = despues;
+		this.ip = ip;
 	}
 
 	@PrePersist

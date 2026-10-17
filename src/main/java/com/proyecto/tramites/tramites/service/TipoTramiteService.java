@@ -1,6 +1,8 @@
 package com.proyecto.tramites.tramites.service;
 
+import com.proyecto.tramites.auditoria.service.BitacoraService;
 import com.proyecto.tramites.comun.excepcion.DatosInvalidosException;
+import com.proyecto.tramites.comun.util.Actor;
 import com.proyecto.tramites.comun.util.Paginacion;
 import com.proyecto.tramites.tramites.dto.CampoTipoRequest;
 import com.proyecto.tramites.tramites.dto.TipoTramiteRequest;
@@ -11,6 +13,7 @@ import com.proyecto.tramites.tramites.entity.TipoTramite;
 import com.proyecto.tramites.tramites.repository.TipoTramiteRepository;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -34,9 +37,11 @@ public class TipoTramiteService {
 	private static final Set<String> ORDENABLES = Set.of("nombre", "monto", "creadoEn");
 
 	private final TipoTramiteRepository tipos;
+	private final BitacoraService bitacora;
 
-	public TipoTramiteService(TipoTramiteRepository tipos) {
+	public TipoTramiteService(TipoTramiteRepository tipos, BitacoraService bitacora) {
 		this.tipos = tipos;
+		this.bitacora = bitacora;
 	}
 
 	@Transactional(readOnly = true)
@@ -55,7 +60,7 @@ public class TipoTramiteService {
 	}
 
 	@Transactional
-	public TipoTramiteResponse crear(TipoTramiteRequest solicitud) {
+	public TipoTramiteResponse crear(Actor actor, TipoTramiteRequest solicitud) {
 		String nombre = solicitud.nombre().trim();
 		if (tipos.existsByNombreIgnoreCaseAndEliminadoEnIsNull(nombre)) {
 			throw nombreEnUso();
@@ -65,12 +70,15 @@ public class TipoTramiteService {
 		if (solicitud.campos() != null) {
 			sincronizarCampos(tipo, solicitud.campos());
 		}
-		return TipoTramiteResponse.de(tipos.saveAndFlush(tipo));
+		TipoTramite guardado = tipos.saveAndFlush(tipo);
+		bitacora.registrar(actor.id(), "CREAR_TIPO_TRAMITE", "tipo_tramite", guardado.getId(), null, resumen(guardado));
+		return TipoTramiteResponse.de(guardado);
 	}
 
 	@Transactional
-	public TipoTramiteResponse actualizar(Long id, TipoTramiteRequest solicitud) {
+	public TipoTramiteResponse actualizar(Actor actor, Long id, TipoTramiteRequest solicitud) {
 		TipoTramite tipo = buscar(id, true);
+		Map<String, Object> antes = resumen(tipo);
 		String nombre = solicitud.nombre().trim();
 		if (tipos.existsByNombreIgnoreCaseAndEliminadoEnIsNullAndIdNot(nombre, id)) {
 			throw nombreEnUso();
@@ -79,15 +87,30 @@ public class TipoTramiteService {
 		if (solicitud.campos() != null) {
 			sincronizarCampos(tipo, solicitud.campos());
 		}
-		return TipoTramiteResponse.de(tipos.saveAndFlush(tipo));
+		TipoTramite guardado = tipos.saveAndFlush(tipo);
+		bitacora.registrar(actor.id(), "EDITAR_TIPO_TRAMITE", "tipo_tramite", guardado.getId(), antes, resumen(guardado));
+		return TipoTramiteResponse.de(guardado);
 	}
 
 	/** Eliminacion logica: el registro se marca y queda en la base. */
 	@Transactional
-	public void eliminar(Long id) {
+	public void eliminar(Actor actor, Long id) {
 		TipoTramite tipo = buscar(id, true);
+		Map<String, Object> antes = resumen(tipo);
 		tipo.eliminarLogicamente();
 		tipos.saveAndFlush(tipo);
+		bitacora.registrar(actor.id(), "ELIMINAR_TIPO_TRAMITE", "tipo_tramite", tipo.getId(), antes,
+				Map.of("eliminado", true));
+	}
+
+	/** Lo que queda en la bitacora de un tipo: nombre, monto, si esta activo y cuantos campos declara. */
+	private static Map<String, Object> resumen(TipoTramite tipo) {
+		Map<String, Object> resumen = new LinkedHashMap<>();
+		resumen.put("nombre", tipo.getNombre());
+		resumen.put("monto", tipo.getMonto());
+		resumen.put("activo", tipo.isActivo());
+		resumen.put("campos", tipo.getCampos().size());
+		return resumen;
 	}
 
 	/**

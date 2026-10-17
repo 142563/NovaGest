@@ -127,7 +127,8 @@ class TransicionesTests {
 
 	private int filas(String tabla, long idTramite) {
 		String columna = tabla.equals("bitacora") ? "recurso_id" : "tramite_id";
-		String filtro = tabla.equals("bitacora") ? " AND recurso = 'tramite'" : "";
+		// En la bitacora se cuentan solo las transiciones: crear y editar el tramite tienen sus propias filas (tarjeta 23)
+		String filtro = tabla.equals("bitacora") ? " AND recurso = 'tramite' AND accion = 'TRANSICION_TRAMITE'" : "";
 		return jdbc.queryForObject("SELECT count(*) FROM " + tabla + " WHERE " + columna + " = ?" + filtro,
 				Integer.class, idTramite);
 	}
@@ -328,8 +329,10 @@ class TransicionesTests {
 		assertThat(filas("tramite_historial", id)).isEqualTo(7);
 		assertThat(filas("bitacora", id)).isEqualTo(6);
 		List<String> acciones = jdbc.queryForList(
-				"SELECT accion FROM bitacora WHERE recurso = 'tramite' AND recurso_id = ?", String.class, id);
-		assertThat(acciones).containsOnly("TRANSICION_TRAMITE");
+				"SELECT accion FROM bitacora WHERE recurso = 'tramite' AND recurso_id = ? ORDER BY id", String.class, id);
+		// Toda la vida del tramite queda en la bitacora: se creo, se edito (en Observado) y paso por 6 transiciones
+		assertThat(acciones).hasSize(8).startsWith("CREAR_TRAMITE").contains("EDITAR_TRAMITE");
+		assertThat(acciones.stream().filter("TRANSICION_TRAMITE"::equals).count()).isEqualTo(6);
 		String ultima = jdbc.queryForObject(
 				"SELECT antes->>'estado' || '>' || (despues->>'estado') FROM bitacora WHERE recurso_id = ? ORDER BY id DESC LIMIT 1",
 				String.class, id);

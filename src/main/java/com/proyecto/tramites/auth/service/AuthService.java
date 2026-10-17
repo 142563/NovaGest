@@ -84,6 +84,9 @@ public class AuthService {
 		catch (DataIntegrityViolationException e) {
 			throw correoEnUso();
 		}
+		// El correo no se guarda en la bitacora: se ubica al usuario por su id
+		bitacora.registrar(usuario.getId(), "REGISTRO_USUARIO", "usuario", usuario.getId(), null,
+				Map.of("rol", ROL_CIUDADANO));
 		return UsuarioResponse.de(usuario);
 	}
 
