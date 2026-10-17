@@ -72,3 +72,10 @@ Nadie aprueba su propio PR. Quien revisa responde en menos de un dia habil.
 - Conflicto al hacer pull: avisar en el grupo antes de resolverlo a ciegas.
 - Subiste un secreto por error: avisar de inmediato; hay que cambiar esa clave, no basta con borrar el commit.
 - Duda sobre el alcance o una regla: preguntar a Ernesto antes de programar.
+
+## Migraciones de Flyway (evitar versiones repetidas)
+Cada migracion tiene una version unica: `V<numero>__descripcion.sql`. Si dos personas crean una migracion en ramas distintas, las dos eligen el siguiente numero y, al juntarlas, la aplicacion no arranca ("Found more than one migration with version N").
+- Antes de crear una migracion, mira cual es la ultima version que hay en `develop` (`git fetch` y revisar `src/main/resources/db/migration`).
+- Si al actualizar tu rama aparece un choque, **renumera la tuya** a la siguiente libre; no cambies la de la otra persona.
+- La prueba `MigracionesTests` falla de inmediato si hay una version repetida, sin necesitar Docker.
+- Nunca se edita una migracion que ya se mezclo en `develop`: se agrega una nueva.
