@@ -208,7 +208,8 @@ class SesionesTests {
 	void unTokenDeAccesoNoSirveComoTokenDeRenovacionNiAlReves() throws Exception {
 		MockHttpServletResponse r = sesion(CORREO);
 
-		assertThat(refrescar(campo(r, "$.accessToken")).getStatus()).isEqualTo(401);
+		// un JWT mide mas de 200 caracteres: se rechaza por tamano (400) o por no existir (401); nunca entrega tokens
+		assertThat(refrescar(campo(r, "$.accessToken")).getStatus()).isIn(400, 401);
 		assertThat(enviar(HttpMethod.GET, "/api/usuarios/yo", campo(r, "$.refreshToken"), null).getStatus()).isEqualTo(401);
 	}
 
