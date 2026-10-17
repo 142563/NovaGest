@@ -1,4 +1,4 @@
--- Tarjeta 19: ingresos propios del ciudadano (borrador para revision del DBA).
+-- Tarjeta 19: ingresos propios del ciudadano (borrador para revision del DBA). Version 8: la 7 la usa pagos (tarjeta 18).
 -- Dato personal: solo el dueno lo ve y lo modifica. Borrado logico (eliminado_en).
 -- Los permisos ingreso:leer/crear/editar/eliminar ya existen desde V2 y solo los tiene el rol CIUDADANO.
 
