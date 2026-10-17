@@ -1,5 +1,6 @@
 package com.proyecto.tramites.tramites.service;
 
+import com.proyecto.tramites.auditoria.service.BitacoraService;
 import com.proyecto.tramites.comun.excepcion.DatosInvalidosException;
 import com.proyecto.tramites.comun.util.Actor;
 import com.proyecto.tramites.comun.util.Paginacion;
@@ -15,9 +16,12 @@ import com.proyecto.tramites.tramites.repository.TipoTramiteRepository;
 import com.proyecto.tramites.tramites.repository.TramiteHistorialRepository;
 import com.proyecto.tramites.tramites.repository.TramiteEspecificaciones;
 import com.proyecto.tramites.tramites.repository.TramiteRepository;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
+import java.util.TreeSet;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -39,13 +43,15 @@ public class TramiteService {
 	private final TipoTramiteRepository tipos;
 	private final ValidadorDatosTramite validador;
 	private final TramiteHistorialRepository historial;
+	private final BitacoraService bitacora;
 
 	public TramiteService(TramiteRepository tramites, TipoTramiteRepository tipos, ValidadorDatosTramite validador,
-			TramiteHistorialRepository historial) {
+			TramiteHistorialRepository historial, BitacoraService bitacora) {
 		this.tramites = tramites;
 		this.tipos = tipos;
 		this.validador = validador;
 		this.historial = historial;
+		this.bitacora = bitacora;
 	}
 
 	/** Abre un tramite en Borrador a nombre de quien lo pide. Los datos pueden estar incompletos. */
@@ -58,6 +64,8 @@ public class TramiteService {
 		Tramite tramite = tramites.saveAndFlush(new Tramite(tipo, actor.id(), validador.aJson(datos)));
 		// La primera fila del historial es la creacion: no hay estado anterior
 		historial.save(new TramiteHistorial(tramite.getId(), null, tramite.getEstado(), actor.id(), null));
+		bitacora.registrar(actor.id(), "CREAR_TRAMITE", "tramite", tramite.getId(), null,
+				Map.of("tipoId", tipo.getId(), "estado", tramite.getEstado().name()));
 		return TramiteResponse.de(tramite, datos);
 	}
 
@@ -106,9 +114,14 @@ public class TramiteService {
 			throw new ResponseStatusException(HttpStatus.CONFLICT,
 					"Solo se pueden editar los datos en estado BORRADOR u OBSERVADO");
 		}
+		Map<String, Object> anteriores = validador.deJson(tramite.getDatos());
 		Map<String, Object> datos = validador.validar(tramite.getTipoTramite(), solicitud.datos());
 		tramite.reemplazarDatos(validador.aJson(datos));
 		tramites.saveAndFlush(tramite);
+		// En la bitacora solo van los nombres de los campos que cambiaron, nunca sus valores (son datos personales)
+		bitacora.registrar(actor.id(), "EDITAR_TRAMITE", "tramite", tramite.getId(),
+				Map.of("estado", tramite.getEstado().name()),
+				Map.of("camposModificados", camposModificados(anteriores, datos)));
 		return TramiteResponse.de(tramite, datos);
 	}
 
@@ -116,8 +129,25 @@ public class TramiteService {
 	@Transactional
 	public void eliminar(Actor actor, Long id) {
 		Tramite tramite = buscarVisible(actor, id);
+		String estado = tramite.getEstado().name();
 		tramite.eliminarLogicamente();
 		tramites.saveAndFlush(tramite);
+		bitacora.registrar(actor.id(), "ELIMINAR_TRAMITE", "tramite", tramite.getId(), Map.of("estado", estado),
+				Map.of("eliminado", true));
+	}
+
+	/** Claves cuyo valor cambio, se agrego o se quito. Los numeros se comparan por valor (2500 igual a 2500.00). */
+	private static List<String> camposModificados(Map<String, Object> antes, Map<String, Object> despues) {
+		Set<String> claves = new TreeSet<>(antes.keySet());
+		claves.addAll(despues.keySet());
+		return claves.stream().filter(clave -> !iguales(antes.get(clave), despues.get(clave))).toList();
+	}
+
+	private static boolean iguales(Object a, Object b) {
+		if (a instanceof Number x && b instanceof Number y) {
+			return new BigDecimal(x.toString()).compareTo(new BigDecimal(y.toString())) == 0;
+		}
+		return Objects.equals(a, b);
 	}
 
 	private Tramite buscarVisible(Actor actor, Long id) {

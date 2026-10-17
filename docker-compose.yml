@@ -1,4 +1,4 @@
-# Levanta la app y la base con un solo comando: docker compose up --build
+﻿# Levanta la app y la base con un solo comando: docker compose up --build
 # Los valores salen del archivo .env (copiar de .env.example); ninguno se escribe aqui.
 services:
   db:
@@ -30,8 +30,12 @@ services:
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
       JWT_SECRET: ${JWT_SECRET:-}
+      COMPROBANTES_DIR: /data/comprobantes
     ports:
       - "8080:8080"
+    volumes:
+      - comprobantes:/data/comprobantes
 
 volumes:
   pgdata:
+  comprobantes:

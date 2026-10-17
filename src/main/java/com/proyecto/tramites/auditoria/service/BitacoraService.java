@@ -6,6 +6,8 @@ import java.util.Map;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
@@ -14,6 +16,8 @@ import tools.jackson.databind.json.JsonMapper;
  */
 @Service
 public class BitacoraService {
+
+	private static final int LARGO_MAXIMO_IP = 45;
 
 	private final BitacoraRepository bitacora;
 	private final JsonMapper json;
@@ -24,13 +28,27 @@ public class BitacoraService {
 	}
 
 	/**
-	 * Registra una accion. En antes y despues va solo lo necesario para entender el cambio (por ejemplo el
-	 * estado), nunca claves, tokens ni datos personales.
+	 * Registra una accion con quien la hizo, sobre que recurso y desde que direccion. En antes y despues va
+	 * solo lo necesario para entender el cambio (por ejemplo el estado o los nombres de los campos tocados),
+	 * nunca claves, tokens ni datos personales.
 	 */
 	@Transactional(propagation = Propagation.MANDATORY)
 	public void registrar(Long actorId, String accion, String recurso, Long recursoId,
 			Map<String, Object> antes, Map<String, Object> despues) {
-		bitacora.saveAndFlush(new Bitacora(actorId, accion, recurso, recursoId, aJson(antes), aJson(despues)));
+		bitacora.saveAndFlush(new Bitacora(actorId, accion, recurso, recursoId, aJson(antes), aJson(despues),
+				direccionDeLaPeticion()));
+	}
+
+	/**
+	 * Direccion IP de quien hizo la peticion, tal como la ve el servidor. Si la API queda detras de un proxy,
+	 * sera la del proxy: no se confia en encabezados como X-Forwarded-For porque cualquiera puede inventarlos.
+	 */
+	private static String direccionDeLaPeticion() {
+		if (RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes atributos) {
+			String ip = atributos.getRequest().getRemoteAddr();
+			return ip == null || ip.length() > LARGO_MAXIMO_IP ? null : ip;
+		}
+		return null;
 	}
 
 	private String aJson(Map<String, Object> valores) {
