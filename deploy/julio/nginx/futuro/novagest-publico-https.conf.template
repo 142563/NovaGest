@@ -1,0 +1,71 @@
+# Plantilla futura HTTPS; requiere dominios reales y certificados Certbot existentes.
+# No activar con dominios de ejemplo ni antes de completar TLS y resolver el uso actual de 443.
+server {
+    listen 443 ssl;
+    server_name ${NOVAGEST_PROD_DOMAIN};
+
+    server_tokens off;
+    ssl_certificate /etc/letsencrypt/live/${NOVAGEST_PROD_DOMAIN}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${NOVAGEST_PROD_DOMAIN}/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+
+    client_max_body_size 6m;
+
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "DENY" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
+    add_header Strict-Transport-Security "max-age=15552000" always;
+
+    location = /api/auth/login {
+        limit_req zone=novagest_login burst=5 nodelay;
+        limit_req_status 429;
+        proxy_pass http://127.0.0.1:8080;
+        include /etc/nginx/snippets/novagest-proxy-headers.conf;
+    }
+
+    location = /actuator/health {
+        proxy_pass http://127.0.0.1:8080;
+        include /etc/nginx/snippets/novagest-proxy-headers.conf;
+    }
+
+    location / {
+        proxy_pass http://127.0.0.1:8080;
+        include /etc/nginx/snippets/novagest-proxy-headers.conf;
+    }
+}
+
+server {
+    listen 443 ssl;
+    server_name ${NOVAGEST_STAGING_DOMAIN};
+
+    server_tokens off;
+    ssl_certificate /etc/letsencrypt/live/${NOVAGEST_STAGING_DOMAIN}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${NOVAGEST_STAGING_DOMAIN}/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+
+    client_max_body_size 6m;
+
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "DENY" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
+    add_header Strict-Transport-Security "max-age=15552000" always;
+
+    location = /api/auth/login {
+        limit_req zone=novagest_login burst=5 nodelay;
+        limit_req_status 429;
+        proxy_pass http://127.0.0.1:8081;
+        include /etc/nginx/snippets/novagest-proxy-headers.conf;
+    }
+
+    location = /actuator/health {
+        proxy_pass http://127.0.0.1:8081;
+        include /etc/nginx/snippets/novagest-proxy-headers.conf;
+    }
+
+    location / {
+        proxy_pass http://127.0.0.1:8081;
+        include /etc/nginx/snippets/novagest-proxy-headers.conf;
+    }
+}

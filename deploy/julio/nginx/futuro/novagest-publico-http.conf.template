@@ -1,0 +1,34 @@
+# Plantilla futura HTTP para ACME. No instalar hasta definir los dominios y publicar
+# DNS, firewall y reenvio del puerto 80 hacia este servidor.
+server {
+    listen 80;
+    server_name ${NOVAGEST_PROD_DOMAIN};
+
+    server_tokens off;
+
+    location ^~ /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+        default_type text/plain;
+    }
+
+    # Durante ACME, devolver 404 al resto hasta emitir el certificado.
+    location / {
+        return 404;
+    }
+}
+
+server {
+    listen 80;
+    server_name ${NOVAGEST_STAGING_DOMAIN};
+
+    server_tokens off;
+
+    location ^~ /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+        default_type text/plain;
+    }
+
+    location / {
+        return 404;
+    }
+}

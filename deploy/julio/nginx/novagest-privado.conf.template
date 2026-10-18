@@ -1,0 +1,64 @@
+# Plantilla privada para Tailscale. Renderizar las variables antes de instalar.
+# Se enlaza solo a la IP Tailscale del servidor, no a todas las interfaces.
+
+server {
+    listen ${TAILSCALE_IP}:${NOVAGEST_PROD_PORT};
+    server_name _;
+
+    server_tokens off;
+    client_max_body_size 6m;
+
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "DENY" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
+
+    location = /api/auth/login {
+        limit_req zone=novagest_login burst=5 nodelay;
+        limit_req_status 429;
+        proxy_pass http://127.0.0.1:8080;
+        include /etc/nginx/snippets/novagest-proxy-headers.conf;
+    }
+
+    location = /actuator/health {
+        proxy_pass http://127.0.0.1:8080;
+        include /etc/nginx/snippets/novagest-proxy-headers.conf;
+    }
+
+    # proxy_pass sin sufijo conserva /api y la ruta completa solicitada.
+    location / {
+        proxy_pass http://127.0.0.1:8080;
+        include /etc/nginx/snippets/novagest-proxy-headers.conf;
+    }
+}
+
+server {
+    listen ${TAILSCALE_IP}:${NOVAGEST_STAGING_PORT};
+    server_name _;
+
+    server_tokens off;
+    client_max_body_size 6m;
+
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "DENY" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
+
+    location = /api/auth/login {
+        limit_req zone=novagest_login burst=5 nodelay;
+        limit_req_status 429;
+        proxy_pass http://127.0.0.1:8081;
+        include /etc/nginx/snippets/novagest-proxy-headers.conf;
+    }
+
+    location = /actuator/health {
+        proxy_pass http://127.0.0.1:8081;
+        include /etc/nginx/snippets/novagest-proxy-headers.conf;
+    }
+
+    # proxy_pass sin sufijo conserva /api y la ruta completa solicitada.
+    location / {
+        proxy_pass http://127.0.0.1:8081;
+        include /etc/nginx/snippets/novagest-proxy-headers.conf;
+    }
+}
