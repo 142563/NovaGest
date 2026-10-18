@@ -15,6 +15,10 @@ was_active=$(<"$state_dir/was-active")
 [[ "$was_enabled" == 0 || "$was_enabled" == 1 ]] || die 'Valor de respaldo inválido: was-enabled.'
 [[ "$was_active" == 0 || "$was_active" == 1 ]] || die 'Valor de respaldo inválido: was-active.'
 
+if [[ -f "$state_dir/runtime-mask" ]]; then
+  systemctl unmask --runtime fail2ban.service
+fi
+
 if [[ -e "$jail_file" ]]; then
   grep -Fq '# Administrado por Novagest: retirar con revertir-fail2ban.sh.' "$jail_file" || die "El archivo $jail_file cambió o no pertenece a este instalador; consérvalo y revísalo manualmente."
   rm -f -- "$jail_file"
@@ -32,6 +36,6 @@ if systemctl list-unit-files fail2ban.service --no-legend 2>/dev/null | grep -q 
   fi
 fi
 
-rm -f -- "$state_dir/was-enabled" "$state_dir/was-active" "$state_dir/applied" "$state_dir/transaction-started"
+rm -f -- "$state_dir/was-enabled" "$state_dir/was-active" "$state_dir/applied" "$state_dir/transaction-started" "$state_dir/runtime-mask"
 rmdir -- "$state_dir"
 printf 'Se quitó %s y se restauró el estado registrado del servicio. El paquete Fail2ban permanece instalado.\n' "$jail_file"

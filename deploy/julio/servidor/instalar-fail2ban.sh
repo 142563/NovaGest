@@ -40,21 +40,26 @@ Confirma que tienes una vía alternativa de administración y que conoces
 las redes desde las que se conecta el equipo. La cuenta compartida puede
 provocar bloqueos que afecten a varias personas.
 EOF
-install -d -m 0700 "$state_dir"
 cleanup_on_error() {
   local status=$?
   trap - ERR
   if [[ -f "$state_dir/transaction-started" ]]; then
-    printf 'Falló la aplicación; intentando restaurar el estado previo...\n' >&2
+    printf 'Falló la aplicación; intentando restaurar configuración y servicio (el paquete puede permanecer instalado)...\n' >&2
     if [[ -f "$(dirname "$0")/revertir-fail2ban.sh" ]]; then
       bash "$(dirname "$0")/revertir-fail2ban.sh" --interno || true
     else
       printf 'Ejecuta manualmente: sudo bash revertir-fail2ban.sh\n' >&2
     fi
+  elif [[ -d "$state_dir" ]]; then
+    # Todavía no comenzó apt ni se modificó el servicio. Retirar únicamente
+    # los archivos de estado que pudo crear esta preparación incompleta.
+    rm -f -- "$state_dir/was-enabled" "$state_dir/was-active" || true
+    rmdir -- "$state_dir" || true
   fi
   exit "$status"
 }
 trap cleanup_on_error ERR
+install -d -m 0700 "$state_dir"
 
 service_was_enabled=0
 service_was_active=0
@@ -65,8 +70,11 @@ printf '%s\n' "$service_was_active" > "$state_dir/was-active"
 chmod 0600 "$state_dir/was-enabled" "$state_dir/was-active"
 touch "$state_dir/transaction-started"
 
+# Evitar que el postinst del paquete inicie el servicio con la configuración
+# por defecto antes de validar nuestra cárcel. La máscara solo vive en /run.
+touch "$state_dir/runtime-mask"
+systemctl mask --runtime fail2ban.service
 apt-get install -y fail2ban
-systemctl stop fail2ban.service
 
 install -d -m 0755 /etc/fail2ban/jail.d
 cat > "$jail_file" <<'EOF'
@@ -74,6 +82,7 @@ cat > "$jail_file" <<'EOF'
 [sshd]
 enabled = true
 backend = systemd
+banaction = nftables-multiport
 port = ssh
 maxretry = 5
 findtime = 10m
@@ -82,6 +91,8 @@ EOF
 chmod 0644 "$jail_file"
 
 fail2ban-client -t
+systemctl unmask --runtime fail2ban.service
+rm -f -- "$state_dir/runtime-mask"
 systemctl enable --now fail2ban.service
 ready=0
 for _ in {1..15}; do
