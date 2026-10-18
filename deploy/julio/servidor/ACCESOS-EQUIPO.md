@@ -19,6 +19,18 @@ sudo bash /home/julio/novagest-despliegue-julio/servidor/crear-cuentas-equipo.sh
 
 La creación real requiere la ejecución del segundo comando por Julio. El modo plan no verifica el contenido protegido de sudoers; esa comprobación ocurre con sudo durante la aplicación. El informe final consulta los permisos de Adrián sin modificar su cuenta. La pertenencia a los grupos `novagest-dev` y `novagest-deploy` solo organiza las cuentas: no habilita permisos sobre `/opt/tramites`.
 
+### Recuperación de la primera ejecución
+
+La primera ejecución creó las cuatro cuentas con contraseña bloqueada y archivos de llaves vacíos, pero se detuvo antes de asignar grupos. En este Ubuntu, `sudo-rs` devuelve éxito al listar la denegación de permisos; el script confundió ese código con una autorización. La salida mostrada por Julio confirmó: `User ng-ernesto is not allowed to run sudo on daniel1.`
+
+La comprobación ahora exige ese mensaje explícito con locale C; cualquier autorización, error o salida desconocida detiene la operación. Se probaron las tres situaciones en Bash sin privilegios. Para completar las cuentas ya creadas, sin recrearlas:
+
+```bash
+sudo bash /home/julio/novagest-despliegue-julio/servidor/crear-cuentas-equipo.sh --completar-bloqueadas
+```
+
+Este modo exige que existan las cuatro cuentas locales previstas, mantengan su contraseña bloqueada, sus directorios pertenezcan a la cuenta y `authorized_keys` sea un archivo propio vacío, sin enlaces simbólicos. Solo añade los grupos pendientes; si falla una verificación posterior retira las membresías añadidas en esta ejecución y conserva las cuentas bloqueadas. La asignación final sigue pendiente hasta ejecutar y revisar este modo.
+
 ## Generar y entregar una llave
 
 Cada persona que necesite acceso SSH genera su llave en su propio equipo y protege la privada con una frase de paso, escrita de forma interactiva cuando `ssh-keygen` la solicite. En PowerShell:

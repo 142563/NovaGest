@@ -15,6 +15,7 @@ usage() {
 Uso:
   bash $SCRIPT_NAME [--plan]
   sudo bash $SCRIPT_NAME --aplicar
+  sudo bash $SCRIPT_NAME --completar-bloqueadas
 
 Por defecto solo muestra el plan. --aplicar requiere root y crea estas cuentas
 locales sin contraseña ni llaves SSH:
@@ -24,7 +25,9 @@ locales sin contraseña ni llaves SSH:
 Las cuentas usan /bin/bash y /home/<usuario>. Sus claves SSH autorizadas quedan
 vacías. El script no asigna grupos docker ni concede permisos sobre /opt/tramites
 o archivos de entorno. No crea ni modifica cuentas preexistentes. Adrián se
-omite para conservar intacta su posible cuenta de dominio.
+omite para conservar intacta su posible cuenta de dominio. El modo de recuperación
+--completar-bloqueadas solo agrega grupos a las cuatro cuentas previstas si ya
+existen, siguen con contraseña bloqueada y authorized_keys vacío.
 EOF
 }
 
@@ -34,6 +37,7 @@ die() {
 }
 
 declare -a created_users=()
+declare -a managed_users=()
 declare -a added_memberships=()
 attempting_user=''
 applying=false
@@ -62,7 +66,7 @@ on_exit() {
 }
 trap on_exit EXIT
 
-(( $# <= 1 )) || die 'Usa solo --plan o --aplicar.'
+(( $# <= 1 )) || die 'Usa solo --plan, --aplicar o --completar-bloqueadas.'
 while (($#)); do
   case "$1" in
     --plan)
@@ -72,6 +76,9 @@ while (($#)); do
     --aplicar)
       [[ "$mode" == plan ]] || die 'No combines --plan con --aplicar.'
       mode=apply
+      ;;
+    --completar-bloqueadas)
+      mode=resume
       ;;
     -h|--help)
       usage
@@ -137,9 +144,13 @@ preflight_group() {
 }
 
 check_developer_sudo() {
-  local user=$1
-  if LC_ALL=C sudo -l -U "$user" >/dev/null 2>&1; then
-    die "La cuenta $user tiene autorización sudo efectiva según sudo -l. No continuaré ni cambiaré sudoers."
+  local user=$1 listing
+  listing=$(LC_ALL=C sudo -l -U "$user" 2>&1) || true
+  # sudo-rs puede devolver éxito al listar una denegación. Exigir el mensaje
+  # explícito de denegación; un error o una salida desconocida no prueba nada.
+  if [[ ! "$listing" =~ ^User\ ${user}\ is\ not\ allowed\ to\ run\ sudo\ on\ [^[:space:]]+\.$ ]]; then
+    printf '%s\n' "$listing" >&2
+    die "No se confirmó la denegación explícita de sudo para $user. Revisar antes de continuar."
   fi
   printf 'Sin autorización sudo efectiva detectada para %s.\n' "$user"
 }
@@ -153,20 +164,17 @@ report_adrian_sudo() {
   fi
   while IFS= read -r identity; do
     [[ -n "$identity" ]] || continue
-    if LC_ALL=C sudo -l -U "$identity" >/dev/null 2>&1; then
-      printf 'Adrián (%s): sudo -l detecta autorización efectiva; cuenta de dominio intacta.\n' "$identity"
-    else
-      printf 'Adrián (%s): sudo -l no confirmó autorización; cuenta de dominio intacta, verificación pendiente.\n' "$identity"
-    fi
+    printf '\nPermisos declarados por sudo para Adrián (%s), sin modificar la cuenta:\n' "$identity"
+    LC_ALL=C sudo -l -U "$identity" || printf 'Consulta de permisos incompleta; revisar con Adrián.\n'
   done <<< "$identities"
 }
 
 command -v getent >/dev/null || die 'No se encontró getent.'
 command -v awk >/dev/null || die 'No se encontró awk.'
 
-if [[ "$mode" == apply ]]; then
+if [[ "$mode" != plan ]]; then
   [[ $EUID -eq 0 ]] || die 'Para aplicar cambios, ejecuta el script como root (por ejemplo, sudo bash crear-cuentas-equipo.sh --aplicar).'
-  for command_name in adduser groupadd usermod gpasswd install passwd sudo sort; do
+  for command_name in adduser groupadd usermod gpasswd install passwd sudo sort stat; do
     command -v "$command_name" >/dev/null || die "No se encontró el comando requerido: $command_name."
   done
   applying=true
@@ -191,6 +199,21 @@ printf 'EXISTE grupo local requerido: %s.\n' "$SUDO_GROUP"
 if [[ "$mode" == plan ]]; then
   printf '\nPlan listo. No se cambió el sistema. Para aplicar, usa sudo bash %s --aplicar.\n' "$SCRIPT_NAME"
   exit 0
+fi
+
+if [[ "$mode" == resume ]]; then
+  for user in "${ALL_USERS[@]}"; do
+    local_passwd_line "$user" >/dev/null || die "Falta la cuenta local $user; recuperación cancelada."
+    status=$(LC_ALL=C passwd -S "$user")
+    read -r _ password_status _ <<< "$status"
+    [[ "$password_status" == L ]] || die "$user ya no tiene contraseña bloqueada; no cambiaré sus grupos."
+    for path in "/home/$user" "/home/$user/.ssh"; do
+      [[ -d "$path" && ! -L "$path" && "$(stat -c %U "$path")" == "$user" ]] || die "Directorio inesperado: $path."
+    done
+    path="/home/$user/.ssh/authorized_keys"
+    [[ -f "$path" && ! -L "$path" && ! -s "$path" && "$(stat -c %U "$path")" == "$user" ]] || die "Llaves o propietario inesperados en $path; no modificaré la cuenta."
+    managed_users+=("$user")
+  done
 fi
 
 # Valida cuentas anteriores antes de crear nada; no las modifica.
@@ -222,6 +245,7 @@ for user in "${ALL_USERS[@]}"; do
   esac
   adduser --disabled-password --no-create-home --gecos "$gecos" --shell /bin/bash "$user"
   created_users+=("$user")
+  managed_users+=("$user")
   install -d -o "$user" -g "$user" -m 0750 "/home/$user"
   install -d -o "$user" -g "$user" -m 0700 "/home/$user/.ssh"
   install -o "$user" -g "$user" -m 0600 /dev/null "/home/$user/.ssh/authorized_keys"
@@ -236,25 +260,29 @@ done
 
 # Comprueba sudo efectivo antes de agregar cualquier grupo a cuentas nuevas.
 for user in "${DEV_USERS[@]}"; do
-  if [[ " ${created_users[*]} " == *" $user "* ]]; then
+  if [[ " ${managed_users[*]} " == *" $user "* ]]; then
     check_developer_sudo "$user"
   fi
 done
 
 add_membership() {
   local user=$1 group=$2
+  if id -nG "$user" | tr ' ' '\n' | grep -Fxq "$group"; then
+    printf 'Membresía ya existente, conservada: %s -> %s.\n' "$user" "$group"
+    return
+  fi
   usermod -aG "$group" "$user"
   added_memberships+=("$user:$group")
   printf 'Membresía asignada: %s -> %s.\n' "$user" "$group"
 }
 
-# Solo agrega grupos a cuentas recién creadas; las preexistentes quedan intactas.
+# Solo cuentas nuevas o explícitamente verificadas en recuperación.
 for user in "${DEV_USERS[@]}"; do
-  if [[ " ${created_users[*]} " == *" $user "* ]]; then
+  if [[ " ${managed_users[*]} " == *" $user "* ]]; then
     add_membership "$user" "$DEV_GROUP"
   fi
 done
-if [[ " ${created_users[*]} " == *' ng-marlon '* ]]; then
+if [[ " ${managed_users[*]} " == *' ng-marlon '* ]]; then
   add_membership ng-marlon "$DEPLOY_GROUP"
   add_membership ng-marlon "$SUDO_GROUP"
 fi
@@ -268,5 +296,5 @@ for user in "${ALL_USERS[@]}"; do
 done
 report_adrian_sudo
 printf '\nCuentas preparadas. Los usuarios de desarrollo no recibieron sudo.\n'
-printf 'Solo ng-marlon creado en esta ejecución se agregó a %s y %s. No se asignaron grupos docker ni permisos de filesystem.\n' "$DEPLOY_GROUP" "$SUDO_GROUP"
+printf 'Las cuentas gestionadas de desarrollo usan %s; ng-marlon usa %s y %s. No se asignaron grupos docker ni permisos sobre el proyecto.\n' "$DEV_GROUP" "$DEPLOY_GROUP" "$SUDO_GROUP"
 printf 'Instala llaves SSH verificadas en un paso posterior; no se copió ninguna llave.\n'
