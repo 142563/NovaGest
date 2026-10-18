@@ -1,6 +1,6 @@
 # Endurecimiento prudente de `daniel1`
 
-Estos archivos preparan la administración del servidor Ubuntu `daniel1`. La auditoría y la creación de la cuenta personal ya fueron ejecutadas por Julio; la conexión por llave al usuario local `julio` se verificó después. Fail2ban sigue pendiente de instalación.
+Estos archivos preparan la administración del servidor Ubuntu `daniel1`. Julio ejecutó la auditoría, creó su cuenta personal e instaló Fail2ban. La conexión por llave a `julio` y el servicio Fail2ban `active/enabled` fueron verificados después. Ver el avance en `../AVANCE-SSH-FAIL2BAN.md`; no volver a ejecutar el instalador sobre la instalación existente.
 
 ## Contexto operativo confirmado
 
