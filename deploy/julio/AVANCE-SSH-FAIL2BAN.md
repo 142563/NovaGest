@@ -20,6 +20,6 @@ systemctl is-enabled fail2ban
 sudo fail2ban-client status sshd
 ```
 
-La contraseña se introduce únicamente en la terminal. La inserción real de un bloqueo nftables aún no se probó: el estado del servicio y la cárcel no sustituyen esa prueba. Si se ensaya después, usar una IP reservada de documentación, verificar la regla y retirar inmediatamente el bloqueo de prueba. No provocar intentos fallidos desde la IP de administración.
+La contraseña se introduce únicamente en la terminal. Julio ejecutó también `servidor/verificar-fail2ban.sh` con sudo: la captura confirmó la IP reservada `198.51.100.254` presente en un conjunto de rechazo nftables y cadena `input` con prioridad `-1`, seguida de su retirada satisfactoria. Resultado final: `OK: bloqueo nftables creado, verificado y retirado.` No se provocaron intentos fallidos desde la IP de administración. Esta prueba verifica la acción de bloqueo, no simula el procesamiento de fallos de autenticación por el filtro.
 
 Esta fase no completa toda DES-4: faltan definir/verificar la política de firewall y la evidencia final. Tampoco completa DES-3 para los demás administradores ni cambia la contraseña de la cuenta compartida.

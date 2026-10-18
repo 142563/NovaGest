@@ -46,6 +46,7 @@ No cambiar `PasswordAuthentication`, `PermitRootLogin`, políticas PAM, credenci
 - `auditar-servidor.sh`: consultas de solo lectura sobre SSH, firewall, interfaces, sockets y servicios importantes. Los comandos que leen reglas del kernel pueden necesitar root.
 - `instalar-fail2ban.sh`: instalación y configuración opcional, protegida por `--aplicar`.
 - `revertir-fail2ban.sh`: elimina solo la cárcel de este paquete y restaura el estado previo de Fail2ban.
+- `verificar-fail2ban.sh`: prueba con sudo la inserción y retirada de un bloqueo usando una IP reservada de documentación. Comprueba el conjunto de rechazo y prioridad de la cadena nftables; limpia el bloqueo al terminar, incluso si falla una comprobación.
 - `crear-usuario-julio.sh`: creación opcional de la cuenta administrativa personal `julio`, sin modificar la cuenta compartida.
 
 ## Cuenta administrativa personal
