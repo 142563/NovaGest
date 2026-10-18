@@ -104,7 +104,7 @@ local_group_line() {
 nss_user_matches() {
   { getent passwd "$1" || true; getent passwd || true; } | awk -F: -v name="${1,,}" '{
     login = tolower($1)
-    sub(/^.*\\\\/, "", login)
+    sub(/^.*\\/, "", login)
     sub(/@.*$/, "", login)
     if (login == name) print $1
   }' | sort -u

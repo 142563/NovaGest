@@ -29,7 +29,11 @@ La comprobación ahora exige ese mensaje explícito con locale C; cualquier auto
 sudo bash /home/julio/novagest-despliegue-julio/servidor/crear-cuentas-equipo.sh --completar-bloqueadas
 ```
 
-Este modo exige que existan las cuatro cuentas locales previstas, mantengan su contraseña bloqueada, sus directorios pertenezcan a la cuenta y `authorized_keys` sea un archivo propio vacío, sin enlaces simbólicos. Solo añade los grupos pendientes; si falla una verificación posterior retira las membresías añadidas en esta ejecución y conserva las cuentas bloqueadas. La asignación final sigue pendiente hasta ejecutar y revisar este modo.
+Este modo exige que existan las cuatro cuentas locales previstas, mantengan su contraseña bloqueada, sus directorios pertenezcan a la cuenta y `authorized_keys` sea un archivo propio vacío, sin enlaces simbólicos. Solo añade los grupos pendientes; si falla una verificación posterior retira las membresías añadidas en esta ejecución y conserva las cuentas bloqueadas.
+
+Julio ejecutó la recuperación satisfactoriamente. Se verificaron por SSH las cuentas y sus grupos: `ng-ernesto` (UID 1004), `ng-frank` (1005) y `ng-brandon` (1006) pertenecen a `novagest-dev`, sin autorización sudo según las comprobaciones ejecutadas con root. `ng-marlon` (1007) pertenece a `novagest-deploy` y `sudo`. La captura confirmó que seguían bloqueadas y sin llaves durante la recuperación. La habilitación de acceso SSH de cada integrante sigue pendiente de recibir su llave pública.
+
+El informe omitió a Adrián por un error al interpretar la barra inversa del nombre de dominio; corregido el reconocimiento. Una consulta directa confirmó que `EJEMPLO\adrian` sigue existiendo (UID 3000028); su autorización efectiva de sudo todavía requiere consulta con root. No se creó ni modificó su cuenta.
 
 ## Generar y entregar una llave
 
