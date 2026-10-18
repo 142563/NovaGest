@@ -48,6 +48,7 @@ No cambiar `PasswordAuthentication`, `PermitRootLogin`, políticas PAM, credenci
 - `revertir-fail2ban.sh`: elimina solo la cárcel de este paquete y restaura el estado previo de Fail2ban.
 - `verificar-fail2ban.sh`: prueba con sudo la inserción y retirada de un bloqueo usando una IP reservada de documentación. Comprueba el conjunto de rechazo y prioridad de la cadena nftables; limpia el bloqueo al terminar, incluso si falla una comprobación.
 - `crear-usuario-julio.sh`: creación opcional de la cuenta administrativa personal `julio`, sin modificar la cuenta compartida.
+- `crear-cuentas-equipo.sh`: plan y creación explícita de cuentas locales bloqueadas para el equipo; ver `ACCESOS-EQUIPO.md` para nombres, grupos, permisos y entrega de llaves públicas.
 
 ## Cuenta administrativa personal
 
